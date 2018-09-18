@@ -11,12 +11,15 @@ class InspectionShell {
         'store',
         'rm',
         'rmdir',
-        'new'
+        'new',
+        'chroot'
     ];
 
     const ARRAY_ICON = "📂  ";
     const OBJECT_ICON = "⚙  ";
     const VALUE_ICON = "🔑  ";
+
+    private $SCOPE = [];
 
     private $active = true;
 
@@ -24,11 +27,17 @@ class InspectionShell {
     private $current = null;
     private $prompt = '$GLOBALS > ';
 
-    public function __construct() {
+    public function __construct($SCOPE = []) {
 
-        $this->path = ['$GLOBALS' => &$GLOBALS];
-        $this->current = &$GLOBALS;
+        if(is_array($SCOPE) && !empty($SCOPE)) {
+            $this->SCOPE = $SCOPE;
+            $this->changeRoot($this->SCOPE, '$SCOPE');
+        } else {
+            $this->changeRoot($GLOBALS, '$GLOBALS');
+        }
 
+        unset($SCOPE);
+        
         while($this->active) {
             $line = $this->readline($this->prompt);
             $args = $this->parseLine($line);
@@ -118,6 +127,20 @@ class InspectionShell {
         return $icon;
     }
 
+    protected function updatePrompt($str = "") {
+        if(is_string($str)) {
+            return $this->prompt = sprintf('%s > ', $str);
+        }
+    }
+
+    protected function changeRoot(Array &$root, $name = '$?') {
+        if(!empty($root)) {
+            $this->path = [$name => &$root];
+            $this->current = &$root;
+            $this->updatePrompt($name);
+        }
+    }
+
     /**
      * Commands
      */
@@ -140,7 +163,7 @@ class InspectionShell {
         $key = key($this->path);
         $this->current = &$this->path[$key];
 
-        $this->prompt = implode('/', array_keys($this->path)) . ' > ';
+        $this->updatePrompt(implode('/', array_keys($this->path)));
     }
 
     /**
@@ -234,7 +257,7 @@ class InspectionShell {
         }
     }
 
-    public function rmdir($args) {
+    public function rmdir($args = []) {
         foreach($args as $v) {
             if(array_key_exists($v, $this->current)) {
                 if(is_array($v) && empty($v)) {
@@ -242,6 +265,19 @@ class InspectionShell {
                 } else {
                     printf('%s is not an empty Array...%s', $v, PHP_EOL);
                 }
+            }
+        }
+    }
+
+    public function chroot($args = []) {
+        $root = array_shift($args);
+        if($root == '$GLOBALS') {
+            $this->changeRoot($GLOBALS, '$GLOBALS');
+        } elseif($root == '$SCOPE') {
+            $this->changeRoot($this->SCOPE, '$SCOPE');
+        } else {
+            if(array_key_exists($root, $this->current) && is_array($this->current[$root])) {
+                $this->changeRoot($this->current[$root], '$' . $root);
             }
         }
     }
