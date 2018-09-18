@@ -25,7 +25,7 @@ class InspectionShell {
      * Icons
      */
     const ARRAY_ICON = "📂  ";
-    const OBJECT_ICON = "⚙️  ";
+    const OBJECT_ICON = "🔩  ";
     const VALUE_ICON = "🔑  ";
     const VALUE_ARRAY_ICON = "🔗";
 
