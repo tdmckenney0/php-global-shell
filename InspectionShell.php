@@ -1,8 +1,14 @@
 <?php
-
+/**
+ * InspectionShell
+ * 
+ * @author Tanner Mckenney<@tdmckenney0>
+ */
 class InspectionShell {
 
-
+    /**
+     * Valid Commands
+     */
     const COMMAND_LIST = [
         'ls',
         'lsr',
@@ -15,28 +21,41 @@ class InspectionShell {
         'chroot'
     ];
 
+    /**
+     * Icons
+     */
     const ARRAY_ICON = "📂  ";
-    const OBJECT_ICON = "⚙  ";
+    const OBJECT_ICON = "⚙️  ";
     const VALUE_ICON = "🔑  ";
+    const VALUE_ARRAY_ICON = "🔗";
+
+    /**
+     * Formatting
+     */
+    const LS_COL_FORMAT = "%-25.25s║ %-10.10s║ %-15s\n";
 
     private $SCOPE = [];
 
+    /**
+     * Main Terminal Loop controller
+     */
     private $active = true;
 
+    /**
+     * Various Pointers
+     */
     private $path = null;
     private $current = null;
-    private $prompt = '$GLOBALS > ';
+    private $prompt = null;
 
     public function __construct($SCOPE = []) {
 
         if(is_array($SCOPE) && !empty($SCOPE)) {
-            $this->SCOPE = $SCOPE;
+            $this->SCOPE = &$SCOPE;
             $this->changeRoot($this->SCOPE, '$SCOPE');
         } else {
             $this->changeRoot($GLOBALS, '$GLOBALS');
         }
-
-        unset($SCOPE);
         
         while($this->active) {
             $line = $this->readline($this->prompt);
@@ -46,14 +65,7 @@ class InspectionShell {
             if(in_array($command, self::COMMAND_LIST)) {
                 $this->{$command}($args);
             } else {
-                if(!$this->endsWith($line, ';')) {
-                    $line = $line . ';';
-                }   
-                try {
-                    @eval($line);
-                } catch(Exception $e) {
-                    echo $e->getMessage() . PHP_EOL;
-                }
+                $this->run($line);  
             }
         }
     }
@@ -85,16 +97,6 @@ class InspectionShell {
         echo $prompt;
         return rtrim(fgets(STDIN), "\n");
     }
-    /**
-     * 
-     */
-    protected function createLsLine($col1, $col2, $col3) {
-        echo implode(' ║ ', [
-            str_pad($col1, 25),
-            str_pad($col2, 10),
-            $col3
-        ]) . PHP_EOL;
-    } 
 
     /**
      * 
@@ -141,6 +143,22 @@ class InspectionShell {
         }
     }
 
+    protected function run($str = "") {
+        if(!$this->endsWith($str, ';')) {
+            $str = $str . ';';
+        }
+
+        $payload = static function ($line, &$_) {
+            @eval($line); // evil.
+        };
+
+        try {
+            $payload($str, $this->current);
+        } catch(Exception $e) {
+            echo $e->getMessage() . PHP_EOL;
+        }
+    }
+
     /**
      * Commands
      */
@@ -153,7 +171,7 @@ class InspectionShell {
     public function cd($args = []) {
         $dir = array_shift($args);
 
-        if($dir == '..') {
+        if($dir == '..' && count($this->path) > 1) {
             array_pop($this->path);
         } elseif(array_key_exists($dir, $this->current) && is_array($this->current[$dir])) {
             $this->path[$dir] = &$this->current[$dir];
@@ -167,27 +185,32 @@ class InspectionShell {
     }
 
     /**
+     * ls
      * 
+     * Lists the current Array's contents.
+     * 
+     * @param Array $args
      */
     public function ls($args = []) {
-        $this->createLsLine('Key', 'Type', 'Value');
+
+        echo self::VALUE_ICON . sprintf(self::LS_COL_FORMAT, 'Key', 'Type', 'Value');
 
         echo str_repeat('═', 50) . PHP_EOL;
 
-        $this->createLsLine(str_pad(self::ARRAY_ICON . '.', 25), 'array', '...');
-        $this->createLsLine(str_pad(self::ARRAY_ICON . '..', 25), 'array', '...');
+        echo self::ARRAY_ICON . sprintf(self::LS_COL_FORMAT, '.', 'Array', self::VALUE_ARRAY_ICON);
+        echo self::ARRAY_ICON . sprintf(self::LS_COL_FORMAT, '..', 'Array', self::VALUE_ARRAY_ICON);
 
         foreach($this->current as $k => $v) {
 
-            $k = substr($this->getIcon($v) . $k, 0, 25);
+            // Type Column
+            $type = gettype($v);
+            $type = ($type === 'object') ? get_class($v) : ucfirst($type);
 
-            if(is_array($v) || is_object($v)) {
-                $value = '...';
-            } else {
-                $value = $v;
-            }
+            // Value Column
+            $value = (is_array($v) || is_object($v)) ? self::VALUE_ARRAY_ICON : $v;
 
-            $this->createLsLine(str_pad($k, 25), str_pad(gettype($v), 10), $value);
+            // Draw
+            echo $this->getIcon($v) . sprintf(self::LS_COL_FORMAT, $k, $type, $value);
         }
 
         echo str_repeat('═', 50) . PHP_EOL;
