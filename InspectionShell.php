@@ -283,5 +283,3 @@ class InspectionShell {
     }
 
 }
-
-new InspectionShell();
