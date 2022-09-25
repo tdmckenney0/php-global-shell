@@ -135,10 +135,10 @@ class InspectionShell {
         }
     }
 
-    protected function changeRoot(Array &$root, $name = '$?') {
+    protected function changeRoot(Array $root, $name = '$?') {
         if(!empty($root)) {
-            $this->path = [$name => &$root];
-            $this->current = &$root;
+            $this->path = [$name => $root];
+            $this->current = $root;
             $this->updatePrompt($name);
         }
     }
@@ -148,7 +148,7 @@ class InspectionShell {
             $str = $str . ';';
         }
 
-        $payload = static function ($line, &$_) {
+        $payload = static function ($line, $_) {
             @eval($line); // evil.
         };
 
@@ -174,12 +174,12 @@ class InspectionShell {
         if($dir == '..' && count($this->path) > 1) {
             array_pop($this->path);
         } elseif(array_key_exists($dir, $this->current) && is_array($this->current[$dir])) {
-            $this->path[$dir] = &$this->current[$dir];
+            $this->path[$dir] = $this->current[$dir];
         }
 
         end($this->path);
         $key = key($this->path);
-        $this->current = &$this->path[$key];
+        $this->current = $this->path[$key];
 
         $this->updatePrompt(implode('/', array_keys($this->path)));
     }
